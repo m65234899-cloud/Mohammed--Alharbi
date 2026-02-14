@@ -53,7 +53,44 @@ const client = new Client({
 client.once("ready", () => {
   console.log(`✅ البوت شغال: ${client.user.tag}`);
 });
+client.once("ready", async () => {
+  console.log(`✅ البوت اشتغل: ${client.user.tag}`);
 
+  const channel = client.channels.cache.get(TICKET_PANEL_CHANNEL_ID);
+
+  if (!channel) {
+    console.log("❌ ما لقيت روم التكت! تأكد من الايدي");
+    return;
+  }
+
+  const mainEmbed = new EmbedBuilder()
+    .setTitle("🎫 نظام التذاكر المطور")
+    .setDescription(
+      "مرحباً بك في مركز المساعدة ✨\nاختر القسم المناسب من القائمة أسفل الرسالة."
+    )
+    .setColor("#2b2d31")
+    .setImage(
+      "https://cdn.discordapp.com/attachments/1458538054913359965/1464157760597004410/background.png"
+    );
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId("ticket_select_menu")
+    .setPlaceholder("🚀 اختر القسم المناسب...")
+    .addOptions(
+      Object.entries(DEPARTMENTS).map(([key, value]) => ({
+        label: value.label,
+        value: key,
+        emoji: { id: value.emoji },
+      }))
+    );
+
+  await channel.send({
+    embeds: [mainEmbed],
+    components: [new ActionRowBuilder().addComponents(menu)],
+  });
+
+  console.log("✅ تم إرسال لوحة التكت تلقائيًا");
+});
 // =====================================================
 // ✅ أمر القائمة !قائمة
 // =====================================================
