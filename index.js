@@ -27,7 +27,6 @@ client.on('messageCreate', async (message) => {
     { label: 'دعم الكيك', description: 'إذا صار في ظلم او شخص غلط عليك افتح هنا', value: 'kick', emoji: { id: '1472021265614114962', name: 'kick' } },
     { label: 'دعم الايفنت', description: 'استلام الجوائز من هنا او الاستفسار', value: 'event', emoji: { id: '1472021260790923346', name: 'event' } }
 ])
-
         const row = new ActionRowBuilder().addComponents(selectMenu);
         await message.channel.send({ embeds: [embed], components: [row] });
     }
