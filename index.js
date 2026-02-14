@@ -22,11 +22,11 @@ client.on('messageCreate', async (message) => {
             .setCustomId('ticket_select')
             .setPlaceholder('اختر نوع التكت')
             .addOptions([
-                { label: 'الدعم الفني', description: 'إذا مشكلتك خطاء فني او استفسار افتح هنا', value: 'support', emoji: '<:support:1472021361189978206>' },
-                { label: 'الإدارة العليا', description: 'إذا كانت تواجهك مشكله قويه افتح هنا', value: 'admin', emoji: '<:admin:1472021220479471696>' },
-                { label: 'دعم الكيك', description: 'إذا صار في ظلم او شخص غلط عليك افتح هنا', value: 'kick', emoji: '<:kick:1472021265614114962>' },
-                { label: 'دعم الايفنت', description: 'استلام الجوائز من هنا او الاستفسار', value: 'event', emoji: '<:event:1472021260790923346>' }
-            ]);
+    { label: 'الدعم الفني', description: 'إذا مشكلتك خطاء فني او استفسار افتح هنا', value: 'support', emoji: { id: '1472021361189978206', name: 'support' } },
+    { label: 'الإدارة العليا', description: 'إذا كانت تواجهك مشكله قويه افتح هنا', value: 'admin', emoji: { id: '1472021220479471696', name: 'admin' } },
+    { label: 'دعم الكيك', description: 'إذا صار في ظلم او شخص غلط عليك افتح هنا', value: 'kick', emoji: { id: '1472021265614114962', name: 'kick' } },
+    { label: 'دعم الايفنت', description: 'استلام الجوائز من هنا او الاستفسار', value: 'event', emoji: { id: '1472021260790923346', name: 'event' } }
+])
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
         await message.channel.send({ embeds: [embed], components: [row] });
