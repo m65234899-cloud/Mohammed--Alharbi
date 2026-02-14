@@ -1,10 +1,13 @@
 const { Client, GatewayIntentBits, PermissionsBitField, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
-const { TOKEN, TICKET_CATEGORY, LOG_CHANNEL, ROLES } = require('./config.json');
+const { TICKET_CATEGORY, LOG_CHANNEL, ROLES } = require('./config.json');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
 let ticketCounter = 1;
 let claimedTickets = {}; // لتخزين من استلم التذكرة {channelId: userId}
+
+// قراءة التوكن من Secret Environment Variable
+const TOKEN = process.env.TOKEN;
 
 client.on('ready', () => console.log(`Logged in as ${client.user.tag}`));
 
@@ -112,4 +115,5 @@ client.on('interactionCreate', async (interaction) => {
     }
 });
 
+// تسجيل الدخول باستخدام Secret TOKEN
 client.login(TOKEN);
