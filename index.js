@@ -1,173 +1,134 @@
 const { 
-    Client, 
-    GatewayIntentBits, 
-    PermissionsBitField, 
-    EmbedBuilder, 
-    ActionRowBuilder, 
-    ButtonBuilder, 
-    ButtonStyle, 
-    StringSelectMenuBuilder,
-    AttachmentBuilder
+    Client, GatewayIntentBits, PermissionsBitField, EmbedBuilder, 
+    ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, AttachmentBuilder 
 } = require('discord.js');
-const { TOKEN, TICKET_CATEGORY, LOG_CHANNEL, ROLES } = require('./config.json');
 
-const client = new Client({ 
-    intents: [
-        GatewayIntentBits.Guilds, 
-        GatewayIntentBits.GuildMessages, 
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers
-    ] 
-});
+const config = {
+    TOKEN: process.env.TOKEN, // تأكد من وضع التوكن في Variables الاستضافة
+    LOG_CHANNEL: "1461679281309614231",
+    TICKET_CATEGORY: "ضع_هنا_ايدي_الكاتيجوري", // ايدي الكاتيجوري اللي تنفتح فيه التذاكر
+    DEPARTMENTS: {
+        support: { label: 'الدعم الفني', role: '1459353728233636022', emoji: '1472153518759612568' },
+        admin: { label: 'الأداره العليا', role: '1462405819294290013', emoji: '1472153543917047951' },
+        kick: { label: 'دعم الكيك', role: '1337252455901040772', emoji: '1472153524606472267' },
+        event: { label: 'دعم الايفنت', role: '1465361030757617746', emoji: '1472153500333903893' }
+    }
+};
 
-// ملاحظة: يفضل استخدام قاعدة بيانات للمتغيرات أدناه
-let ticketCounter = Date.now(); // استخدام الوقت لضمان عدم تكرار الرقم
-let activeTickets = new Set(); 
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers] });
 
-client.once('ready', () => {
-    console.log(`✅ تم تشغيل البوت بنجاح: ${client.user.tag}`);
-});
+client.once('ready', () => console.log(`✅ Ready as ${client.user.tag}`));
 
-// أمر إنشاء رسالة التذاكر
+// رسالة التكت الرئيسية
 client.on('messageCreate', async (message) => {
     if (message.content === '!تكت') {
         if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return;
 
         const embed = new EmbedBuilder()
-            .setTitle('__مركز الدعم والمساعدة__')
+            .setTitle('__نظام تذاكر الدعم الفني__')
             .setDescription('يرجى اختيار القسم المناسب لمشكلتك من القائمة أدناه.')
             .setColor('#2b2d31')
             .setImage('https://cdn.discordapp.com/attachments/1458538054913359965/1464157760597004410/background.png');
 
-        const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId('ticket_select')
-            .setPlaceholder('🚀 اختر نوع التذكرة...')
-            .addOptions([
-                { label: 'الدعم الفني', value: 'support', emoji: '🛠️' },
-                { label: 'الإدارة العليا', value: 'admin', emoji: '👑' },
-                { label: 'قسم الشكاوي', value: 'kick', emoji: '⚖️' },
-                { label: 'جوائز الايفنتات', value: 'event', emoji: '🎁' }
-            ]);
+        const menu = new StringSelectMenuBuilder()
+            .setCustomId('ticket_main_select')
+            .setPlaceholder('اختر القسم من هنا...')
+            .addOptions(Object.entries(config.DEPARTMENTS).map(([key, value]) => ({
+                label: value.label,
+                value: key,
+                emoji: value.emoji
+            })));
 
-        const row = new ActionRowBuilder().addComponents(selectMenu);
-        await message.channel.send({ embeds: [embed], components: [row] });
-        await message.delete();
+        await message.channel.send({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)] });
     }
 });
 
 client.on('interactionCreate', async (interaction) => {
     // 1. إنشاء التذكرة
-    if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
-        if (activeTickets.has(interaction.user.id)) {
-            return interaction.reply({ content: 'لديك تذكرة مفتوحة بالفعل!', ephemeral: true });
-        }
-
-        const type = interaction.values[0];
-        const roleId = ROLES[type];
+    if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_main_select') {
+        const deptKey = interaction.values[0];
+        const dept = config.DEPARTMENTS[deptKey];
 
         const channel = await interaction.guild.channels.create({
-            name: `ticket-${interaction.user.username}`,
-            type: 0,
-            parent: TICKET_CATEGORY,
+            name: `${dept.label}-${interaction.user.username}`,
+            parent: config.TICKET_CATEGORY,
             permissionOverwrites: [
                 { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-                { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles] },
-                { id: roleId, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+                { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+                { id: dept.role, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
             ],
         });
 
-        activeTickets.add(interaction.user.id);
+        const panelEmbed = new EmbedBuilder()
+            .setTitle(`قسم ${dept.label}`)
+            .addFields(
+                { name: '👤 صاحب التذكرة:', value: `<@${interaction.user.id}>`, inline: true },
+                { name: '🛡️ الرتبة المسؤولة:', value: `<@&${dept.role}>`, inline: true }
+            )
+            .setDescription('سيقوم الفريق المختص بالرد عليك قريباً، يرجى كتابة مشكلتك بالتفصيل.')
+            .setColor('Blue');
 
-        const welcomeEmbed = new EmbedBuilder()
-            .setTitle('تذكرة جديدة')
-            .setDescription(`مرحباً <@${interaction.user.id}>، يرجى كتابة مشكلتك وسيقوم فريق <@&${roleId}> بالرد عليك قريباً.`)
-            .setColor('Blue')
-            .setTimestamp();
-
-        const claimBtn = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('claim_ticket').setLabel('استلام التذكرة').setStyle(ButtonStyle.Success).setEmoji('✅')
+        const buttons = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`claim_${deptKey}`).setLabel('استلام').setStyle(ButtonStyle.Success).setEmoji('✅'),
+            new ButtonBuilder().setCustomId('add_member').setLabel('اضافة شخص').setStyle(ButtonStyle.Primary).setEmoji('👤'),
+            new ButtonBuilder().setCustomId('remind_user').setLabel('تذكير').setStyle(ButtonStyle.Secondary).setEmoji('🔔'),
+            new ButtonBuilder().setCustomId('close_ticket').setLabel('اغلاق').setStyle(ButtonStyle.Danger).setEmoji('🔒')
         );
 
-        await channel.send({ embeds: [welcomeEmbed], components: [claimBtn] });
+        await channel.send({ content: `<@${interaction.user.id}> | <@&${dept.role}>`, embeds: [panelEmbed], components: [buttons] });
         await interaction.reply({ content: `تم فتح تذكرتك بنجاح: ${channel}`, ephemeral: true });
     }
 
-    // 2. التعامل مع الأزرار والقوائم داخل التذكرة
-    if (interaction.isButton() || interaction.isStringSelectMenu()) {
-        const ticketChannel = interaction.channel;
+    // 2. معالجة الأزرار
+    if (interaction.isButton()) {
+        const customId = interaction.customId;
+        const channel = interaction.channel;
 
-        if (interaction.customId === 'claim_ticket') {
-            const internalMenu = new StringSelectMenuBuilder()
-                .setCustomId('ticket_options')
-                .setPlaceholder('إعدادات الإدارة')
-                .addOptions([
-                    { label: 'إضافة عضو', value: 'add_user', emoji: '👤' },
-                    { label: 'تذكير العميل', value: 'remind_user', emoji: '🔔' },
-                    { label: 'إغلاق وحفظ', value: 'close_ticket', emoji: '🔒' },
-                ]);
+        // التحقق من الرتبة (لازم يكون معاه رتبة القسم عشان يتحكم)
+        const deptKey = Object.keys(config.DEPARTMENTS).find(k => channel.name.startsWith(config.DEPARTMENTS[k].label));
+        const requiredRole = config.DEPARTMENTS[deptKey]?.role;
 
-            await interaction.update({ 
-                content: `✅ تم استلام التذكرة بواسطة: <@${interaction.user.id}>`, 
-                components: [new ActionRowBuilder().addComponents(internalMenu)] 
+        if (customId.startsWith('claim_')) {
+            if (!interaction.member.roles.cache.has(requiredRole)) {
+                return interaction.reply({ content: 'عذراً، هذا الزر مخصص لإدارة هذا القسم فقط!', ephemeral: true });
+            }
+            await interaction.reply({ content: `✅ تم استلام التذكرة بواسطة: <@${interaction.user.id}>` });
+            await interaction.message.edit({ components: [new ActionRowBuilder().addComponents(interaction.message.components[0].components.filter(c => c.customId !== customId))] });
+        }
+
+        if (customId === 'add_member') {
+            if (!interaction.member.roles.cache.has(requiredRole)) return interaction.reply({ content: 'للمسؤولين فقط', ephemeral: true });
+            
+            await interaction.reply({ content: 'أرسل ID الشخص المراد إضافته الآن.', ephemeral: true });
+            const collector = channel.createMessageCollector({ filter: m => m.author.id === interaction.user.id, max: 1, time: 20000 });
+            
+            collector.on('collect', async m => {
+                await channel.permissionOverwrites.edit(m.content, { ViewChannel: true, SendMessages: true });
+                m.reply(`تم إضافة <@${m.content}> بنجاح.`);
             });
         }
 
-        if (interaction.customId === 'ticket_options') {
-            const option = interaction.values[0];
+        if (customId === 'remind_user') {
+            if (!interaction.member.roles.cache.has(requiredRole)) return interaction.reply({ content: 'للمسؤولين فقط', ephemeral: true });
+            await channel.send('🔔 **تذكير:** يرجى الرد على التذكرة لكي لا يتم إغلاقها تلقائياً.');
+            await interaction.reply({ content: 'تم الإرسال', ephemeral: true });
+        }
 
-            switch (option) {
-                case 'add_user':
-                    await interaction.reply({ content: 'من فضلك أرسل ID الشخص المراد إضافته الآن.' });
-                    const collector = interaction.channel.createMessageCollector({ 
-                        filter: m => m.author.id === interaction.user.id, 
-                        max: 1, 
-                        time: 30000 
-                    });
+        if (customId === 'close_ticket') {
+            if (!interaction.member.roles.cache.has(requiredRole)) return interaction.reply({ content: 'للمسؤولين فقط', ephemeral: true });
 
-                    collector.on('collect', async m => {
-                        const userId = m.content;
-                        try {
-                            await ticketChannel.permissionOverwrites.edit(userId, { ViewChannel: true, SendMessages: true });
-                            await m.reply(`تم إضافة <@${userId}> للتذكرة بنجاح.`);
-                        } catch {
-                            await m.reply('تأكد من كتابة ID صحيح.');
-                        }
-                    });
-                    break;
+            await interaction.reply('جاري حفظ السجلات وإغلاق التذكرة...');
+            
+            const messages = await channel.messages.fetch();
+            const logText = messages.reverse().map(m => `${m.author.tag}: ${m.content}`).join('\n');
+            const attachment = new AttachmentBuilder(Buffer.from(logText), { name: `transcript-${channel.name}.txt` });
 
-                case 'remind_user':
-                    await ticketChannel.send({ content: `🔔 تذكير للعميل: ننتظر ردك لإكمال المساعدة.` });
-                    await interaction.reply({ content: 'تم الإرسال', ephemeral: true });
-                    break;
+            const logChannel = client.channels.cache.get(config.LOG_CHANNEL);
+            if (logChannel) await logChannel.send({ content: `📝 سجل تذكرة مغلقة: **${channel.name}**`, files: [attachment] });
 
-                case 'close_ticket':
-                    await interaction.reply('جاري إغلاق التذكرة وحفظ السجلات...');
-                    
-                    // إنشاء Transcript بسيط
-                    const messages = await ticketChannel.messages.fetch({ limit: 100 });
-                    const transcript = messages.reverse().map(m => `${m.author.tag}: ${m.content}`).join('\n');
-                    const buffer = Buffer.from(transcript, 'utf-8');
-                    const attachment = new AttachmentBuilder(buffer, { name: `transcript-${ticketChannel.name}.txt` });
-
-                    const logChannel = client.channels.cache.get(LOG_CHANNEL);
-                    if (logChannel) {
-                        await logChannel.send({ 
-                            content: `📄 سجل التذكرة: **${ticketChannel.name}**`, 
-                            files: [attachment] 
-                        });
-                    }
-
-                    // إزالة المستخدم من قائمة التذاكر النشطة
-                    // ملاحظة: نحتاج لطريقة لجلب صاحب التذكرة الأصلي، هنا افترضنا الاسم
-                    activeTickets.forEach(id => {
-                        if (ticketChannel.name.includes(id)) activeTickets.delete(id);
-                    });
-
-                    setTimeout(() => ticketChannel.delete().catch(() => {}), 5000);
-                    break;
-            }
+            setTimeout(() => channel.delete(), 5000);
         }
     }
 });
 
-client.login(TOKEN);
+client.login(config.TOKEN);
